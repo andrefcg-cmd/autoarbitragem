@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AutoArbitrage — NL ↔ PT</title>
+    <meta name="theme-color" content="#0b1120">
+    <link rel="manifest" href="manifest.json">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:#0b1120;--bg2:#111a2e;--card:#162033;--card-h:#1c2841;
+            --surface:#1e3050;--border:#253555;
+            --text:#eaf0ff;--text2:#8da0c4;--muted:#526889;
+            --nl:#ff7033;--nl-s:rgba(255,112,51,.14);--nl-g:linear-gradient(135deg,#ff7033,#ff9d5c);
+            --pt:#22d67a;--pt-s:rgba(34,214,122,.12);--pt-g:linear-gradient(135deg,#22d67a,#5ff5a9);
+            --sp:#ffd42a;--sp-s:rgba(255,212,42,.1);
+            --err:#ff4757;--err-s:rgba(255,71,87,.1);
+            --r:16px;--rs:10px;
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Outfit',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+        body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 15% 10%,rgba(255,112,51,.05),transparent 55%),radial-gradient(ellipse at 85% 90%,rgba(34,214,122,.04),transparent 55%);pointer-events:none}
+
+        /* HEADER */
+        .hdr{position:sticky;top:0;z-index:100;background:rgba(11,17,32,.88);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:14px 20px}
+        .hdr-in{max-width:640px;margin:0 auto;display:flex;align-items:center;justify-content:space-between}
+        .logo{display:flex;align-items:center;gap:10px}
+        .logo-i{width:36px;height:36px;background:var(--nl-g);border-radius:10px;display:grid;place-items:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#fff;box-shadow:0 2px 12px rgba(255,112,51,.3)}
+        .logo-t{font-size:16px;font-weight:700;letter-spacing:-.3px}
+        .logo-t span{color:var(--muted);font-weight:400;font-size:13px;margin-left:4px}
+        .hdr-btns{display:flex;gap:6px}
+        .ib{width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text2);display:grid;place-items:center;cursor:pointer;transition:.2s;font-size:15px}
+        .ib:hover{background:var(--card-h);color:var(--text)}
+        .ib.scanning{background:var(--nl-s);border-color:var(--nl);color:var(--nl);animation:pulse 1.5s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+        /* TABS */
+        .tabs{max-width:640px;margin:0 auto;padding:14px 20px 0;display:flex;gap:2px}
+        .tab{flex:1;padding:10px 4px;background:0;border:0;border-bottom:2.5px solid transparent;color:var(--muted);font-family:'Outfit',sans-serif;font-size:11.5px;font-weight:600;cursor:pointer;transition:.2s;text-transform:uppercase;letter-spacing:.7px}
+        .tab.active{color:var(--nl);border-bottom-color:var(--nl)}
+
+        /* MAIN */
+        .main{max-width:640px;margin:0 auto;padding:16px 20px 100px;position:relative;z-index:1}
+        .tc{display:none;animation:fi .25s}.tc.active{display:block}
+        @keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+        /* CARDS */
+        .cd{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px;transition:border-color .2s}
+        .cd:hover{border-color:rgba(255,112,51,.25)}
+        .cd-t{font-size:10.5px;text-transform:uppercase;letter-spacing:1.3px;color:var(--muted);margin-bottom:12px;font-weight:600}
+
+        /* FORM */
+        .fg{margin-bottom:14px}
+        .fl{display:block;font-size:11.5px;color:var(--text2);margin-bottom:5px;font-weight:500}
+        .fi,.fs{width:100%;padding:11px 13px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;transition:.2s;outline:0}
+        .fi:focus,.fs:focus{border-color:var(--nl);box-shadow:0 0 0 3px var(--nl-s)}
+        .fi::placeholder{color:var(--muted)}
+        .fs{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23526889' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+        .fr{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+        /* BUTTONS */
+        .btn{width:100%;padding:13px;border:0;border-radius:var(--rs);font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:7px}
+        .btn-p{background:var(--nl-g);color:#fff;box-shadow:0 2px 12px rgba(255,112,51,.2)}
+        .btn-p:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(255,112,51,.35)}
+        .btn-p:active{transform:translateY(0)}
+        .btn-s{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+        .btn-d{background:var(--err-s);color:var(--err);border:1px solid rgba(255,71,87,.15)}
+        .btn-sm{padding:7px 12px;font-size:11.5px;width:auto;border-radius:8px}
+
+        /* STATS */
+        .sg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+        .sc{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;text-align:center}
+        .sv{font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:700;margin-bottom:2px}
+        .sl{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.9px;font-weight:600}
+
+        /* WATCH ITEMS */
+        .wi{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:15px;margin-bottom:12px;position:relative;overflow:hidden;transition:.2s}
+        .wi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--nl);transition:.3s}
+        .wi.alert::before{background:var(--sp);box-shadow:0 0 14px rgba(255,212,42,.5)}
+        .wi-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+        .wi-n{font-weight:700;font-size:14px;letter-spacing:-.2px}
+        .wi-d{font-size:10.5px;color:var(--muted);margin-top:2px}
+        .wi-st{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:3px 9px;border-radius:20px;white-space:nowrap}
+        .st-m{background:var(--nl-s);color:var(--nl)}.st-a{background:var(--sp-s);color:var(--sp);animation:pulse 2s infinite}.st-p{background:rgba(255,255,255,.05);color:var(--muted)}
+
+        .wi-pr{display:grid;grid-template-columns:1fr 28px 1fr;gap:4px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+        .pb{text-align:center}
+        .pl{font-size:8.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);margin-bottom:3px;display:flex;align-items:center;justify-content:center;gap:3px}
+        .pv{font-family:'JetBrains Mono',monospace;font-size:14.5px;font-weight:700}
+        .pv-nl{color:var(--nl)}.pv-pt{color:var(--pt)}
+        .pd{font-size:8.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px}
+        .sa{color:var(--muted);font-size:14px;display:grid;place-items:center}
+
+        .sb{text-align:center;padding:8px 12px;background:var(--sp-s);border-radius:var(--rs);margin-top:8px}
+        .sb-l{font-size:8.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+        .sb-v{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;color:var(--sp)}
+        .sb-v.neg{color:var(--err)}
+
+        .wi-a{display:flex;gap:5px;margin-top:10px;flex-wrap:wrap}
+        .wi-m{font-size:9.5px;color:var(--muted);margin-top:6px;font-family:'JetBrains Mono',monospace}
+
+        /* ALERT ITEMS */
+        .ai{background:var(--card);border:1px solid rgba(255,212,42,.25);border-radius:var(--r);padding:15px;margin-bottom:10px}
+        .ai-t{font-size:9.5px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+        .ai-c{font-weight:700;font-size:14px;margin:4px 0}
+        .ai-s{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;color:var(--sp)}
+        .ai-l{display:flex;gap:6px;margin-top:10px}
+        .al{flex:1;padding:9px;border-radius:var(--rs);text-align:center;font-size:11px;font-weight:600;text-decoration:none;transition:.2s;display:block}
+        .al-nl{background:var(--nl-s);color:var(--nl);border:1px solid rgba(255,112,51,.15)}
+        .al-pt{background:var(--pt-s);color:var(--pt);border:1px solid rgba(34,214,122,.15)}
+
+        /* MODAL */
+        .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(5px);z-index:200;align-items:flex-end;justify-content:center}
+        .mo.active{display:flex}
+        .mo-c{background:var(--bg2);border-radius:22px 22px 0 0;width:100%;max-width:640px;max-height:88vh;overflow-y:auto;padding:20px 20px 36px;animation:su .3s}
+        @keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        .mo-h{width:36px;height:4px;background:var(--surface);border-radius:4px;margin:0 auto 16px}
+        .mo-t{font-size:17px;font-weight:700;margin-bottom:16px}
+
+        /* INFO */
+        .ib2{background:rgba(255,112,51,.06);border:1px solid rgba(255,112,51,.12);border-radius:var(--rs);padding:12px;font-size:11px;color:var(--text2);line-height:1.65;margin-top:8px}
+        .ib2 strong{color:var(--nl)}
+
+        /* EMPTY */
+        .es{text-align:center;padding:50px 20px;color:var(--muted)}
+        .es-i{font-size:44px;margin-bottom:14px;opacity:.4}
+        .es h3{font-size:15px;color:var(--text2);margin-bottom:6px;font-weight:600}
+        .es p{font-size:12px;max-width:280px;margin:0 auto;line-height:1.5}
+
+        /* SPINNER */
+        .spin{width:16px;height:16px;border:2px solid var(--surface);border-top-color:var(--nl);border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
+        @keyframes sp{to{transform:rotate(360deg)}}
+
+        /* TOAST */
+        .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px 20px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,.5);opacity:0;transition:.3s;max-width:92vw}
+        .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+        .toast.t-ok{border-color:var(--pt)}.toast.t-err{border-color:var(--err)}.toast.t-warn{border-color:var(--sp)}
+
+        /* PROGRESS */
+        .prog{height:3px;background:var(--surface);border-radius:3px;overflow:hidden;margin-bottom:14px}
+        .prog-bar{height:100%;background:var(--nl-g);border-radius:3px;transition:width .4s;width:0}
+
+        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--surface);border-radius:4px}
+        @media(max-width:360px){.fr{grid-template-columns:1fr}.sg{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+
+<header class="hdr"><div class="hdr-in">
+    <div class="logo"><div class="logo-i">AA</div><div class="logo-t">AutoArbitrage<span>NL↔PT</span></div></div>
+    <div class="hdr-btns">
+        <button class="ib" id="scanBtn" onclick="scanAll()" title="Scan todos">🔍</button>
+    </div>
+</div></header>
+
+<nav class="tabs" id="navTabs">
+    <button class="tab active" data-tab="monitor">Monitor</button>
+    <button class="tab" data-tab="watchlist">Watchlist</button>
+    <button class="tab" data-tab="alerts">Alertas</button>
+    <button class="tab" data-tab="config">Config</button>
+</nav>
+
+<main class="main">
+    <!-- MONITOR -->
+    <div class="tc active" id="tab-monitor">
+        <div class="sg">
+            <div class="sc"><div class="sv" style="color:var(--nl)" id="sW">0</div><div class="sl">Monitorando</div></div>
+            <div class="sc"><div class="sv" style="color:var(--sp)" id="sA">0</div><div class="sl">Alertas</div></div>
+            <div class="sc"><div class="sv" style="color:var(--pt)" id="sS">—</div><div class="sl">Melhor Spread</div></div>
+            <div class="sc"><div class="sv" style="color:var(--text2)" id="sL">—</div><div class="sl">Último Scan</div></div>
+        </div>
+        <div id="scanProgress" style="display:none"><div class="prog"><div class="prog-bar" id="progBar"></div></div><div style="font-size:11px;color:var(--text2);margin-bottom:14px" id="progText">Scanning...</div></div>
+        <div class="cd"><div class="cd-t">Atividade</div><div id="actLog"><p style="color:var(--muted);font-size:12px;text-align:center;padding:12px">Adicione modelos à watchlist e clique 🔍 para buscar preços reais.</p></div></div>
+        <div class="cd">
+            <div class="cd-t">Como funciona</div>
+            <div class="ib2">Este app busca preços diretamente do <strong>AutoScout24</strong> (Holanda) e <strong>StandVirtual</strong> (Portugal) via proxies CORS. Calcula o spread líquido (preço PT − preço NL − custos de importação). Quando o spread atingir o mínimo configurado, você é alertado.<br><br>
+            <strong>Dica:</strong> Sites podem bloquear após muitas requisições. Espaçe os scans e use com moderação.</div>
+        </div>
+    </div>
+
+    <!-- WATCHLIST -->
+    <div class="tc" id="tab-watchlist">
+        <button class="btn btn-p" onclick="openModal()" style="margin-bottom:16px"><span>+</span> Adicionar Modelo</button>
+        <div id="wlItems"></div>
+    </div>
+
+    <!-- ALERTS -->
+    <div class="tc" id="tab-alerts"><div id="alList"></div></div>
+
+    <!-- CONFIG -->
+    <div class="tc" id="tab-config">
+        <div class="cd">
+            <div class="cd-t">Configurações de Alerta</div>
+            <div class="fg"><label class="fl">Spread mínimo global (€)</label><input type="number" class="fi" id="cfgSpread" value="2000"></div>
+            <div class="fg"><label class="fl">Proxy CORS preferido</label>
+                <select class="fs" id="cfgProxy">
+                    <option value="allorigins">AllOrigins (recomendado)</option>
+                    <option value="corsfix">Corsfix</option>
+                    <option value="corsproxy">CorsProxy.io</option>
+                </select>
+            </div>
+            <button class="btn btn-p" onclick="saveCfg()">Salvar</button>
+        </div>
+        <div class="cd">
+            <div class="cd-t">Custos de Importação NL → PT</div>
+            <div class="ib2">
+                <strong>ISV</strong> — Imposto sobre Veículos (cilindrada/CO₂)<br>
+                <strong>Transporte</strong> — €500 – €1.200<br>
+                <strong>Inspeção + Legalização</strong> — €200 – €400<br>
+                <strong>DAV</strong> — Declaração Aduaneira de Veículo<br><br>
+                Ajuste o "custo de importação" ao adicionar cada modelo.
+            </div>
+        </div>
+        <div class="cd">
+            <div class="cd-t">Dados</div>
+            <button class="btn btn-s" onclick="exportData()" style="margin-bottom:8px">📥 Exportar JSON</button>
+            <button class="btn btn-d" onclick="clearAll()">🗑 Limpar Tudo</button>
+        </div>
+    </div>
+</main>
+
+<!-- ADD MODAL -->
+<div class="mo" id="addModal" onclick="if(event.target===this)closeModal()">
+<div class="mo-c"><div class="mo-h"></div>
+    <h2 class="mo-t">Adicionar Modelo</h2>
+    <div class="fg"><label class="fl">Marca</label><select class="fs" id="mBrand" onchange="updModels()"><option value="">Selecionar...</option></select></div>
+    <div class="fg"><label class="fl">Modelo</label><select class="fs" id="mModel"><option value="">Selecionar...</option></select></div>
+    <div class="fr">
+        <div class="fg"><label class="fl">Ano De</label><input type="number" class="fi" id="mYF" value="2019"></div>
+        <div class="fg"><label class="fl">Ano Até</label><input type="number" class="fi" id="mYT" value="2024"></div>
+    </div>
+    <div class="fr">
+        <div class="fg"><label class="fl">KM Máx</label><input type="number" class="fi" id="mKm" value="120000"></div>
+        <div class="fg"><label class="fl">Combustível</label><select class="fs" id="mFuel"><option value="all">Todos</option><option value="diesel">Diesel</option><option value="gasolina">Gasolina</option><option value="hibrido">Híbrido</option><option value="eletrico">Elétrico</option></select></div>
+    </div>
+    <div class="fr">
+        <div class="fg"><label class="fl">Spread mín. (€)</label><input type="number" class="fi" id="mSpread" placeholder="Global"></div>
+        <div class="fg"><label class="fl">Custo import. (€)</label><input type="number" class="fi" id="mCost" value="2500"></div>
+    </div>
+    <button class="btn btn-p" onclick="addItem()" style="margin-top:6px">Adicionar à Watchlist</button>
+    <button class="btn btn-s" onclick="closeModal()" style="margin-top:8px">Cancelar</button>
+</div></div>
+
+<div class="toast" id="toast"><span id="tI"></span><span id="tM"></span></div>
+
+<script>
+// ═══════════════════════════════════════════
+// BRANDS / MODELS DB
+// ═══════════════════════════════════════════
+const BRANDS={
+    volkswagen:['Golf','Polo','T-Roc','Tiguan','Passat','ID.3','ID.4','T-Cross','Arteon','Up!','Touran'],
+    bmw:['Série 1','Série 2','Série 3','Série 5','X1','X2','X3','X5','iX3','i4','iX'],
+    mercedes:['Classe A','Classe B','Classe C','Classe E','CLA','GLA','GLB','GLC','GLE','EQA','EQB'],
+    audi:['A1','A3','A4','A5','A6','Q2','Q3','Q5','Q7','e-tron','TT'],
+    toyota:['Yaris','Corolla','C-HR','RAV4','Yaris Cross','Camry','Aygo X'],
+    peugeot:['208','308','2008','3008','5008','508','e-208','e-2008'],
+    renault:['Clio','Captur','Mégane','Arkana','Zoe','Twingo','Scénic'],
+    citroen:['C3','C4','C5 Aircross','Berlingo','ë-C4','C3 Aircross'],
+    ford:['Fiesta','Focus','Puma','Kuga','Mustang Mach-E','Explorer'],
+    opel:['Corsa','Astra','Mokka','Crossland','Grandland'],
+    seat:['Ibiza','Leon','Arona','Ateca','Tarraco','Cupra Formentor'],
+    skoda:['Fabia','Octavia','Kamiq','Karoq','Kodiaq','Enyaq','Superb'],
+    volvo:['XC40','XC60','XC90','V60','S60','C40'],
+    hyundai:['i10','i20','i30','Tucson','Kona','IONIQ 5','Bayon'],
+    kia:['Picanto','Rio','Ceed','Sportage','Niro','EV6','Stonic'],
+    nissan:['Micra','Juke','Qashqai','X-Trail','Leaf','Ariya'],
+    mazda:['Mazda2','Mazda3','CX-3','CX-5','CX-30','MX-5','MX-30'],
+    fiat:['500','Panda','Tipo','500X','500e'],
+    honda:['Jazz','Civic','HR-V','CR-V','ZR-V'],
+    mini:['Cooper','Countryman','Clubman'],
+    porsche:['Cayenne','Macan','911','Taycan','Panamera'],
+    tesla:['Model 3','Model Y','Model S','Model X'],
+    land_rover:['Evoque','Discovery Sport','Defender','Velar']
+};
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let S = { watchlist:[], alerts:[], log:[], cfg:{ minSpread:2000, proxy:'allorigins' } };
+const LS_KEY = 'autoarb_v2';
+
+function load(){ try{ const d=localStorage.getItem(LS_KEY); if(d) S={...S,...JSON.parse(d)}; }catch(e){} applyUI(); }
+function save(){ try{ localStorage.setItem(LS_KEY,JSON.stringify(S)); }catch(e){} }
+function applyUI(){ document.getElementById('cfgSpread').value=S.cfg.minSpread; document.getElementById('cfgProxy').value=S.cfg.proxy||'allorigins'; }
+
+// ═══════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+    document.querySelectorAll('.tc').forEach(c=>c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(c=>c.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-'+t.dataset.tab).classList.add('active');
+}));
+
+function openModal(){document.getElementById('addModal').classList.add('active')}
+function closeModal(){document.getElementById('addModal').classList.remove('active')}
+function toast(icon,msg,type=''){const t=document.getElementById('toast');document.getElementById('tI').textContent=icon;document.getElementById('tM').textContent=msg;t.className='toast show'+(type?' t-'+type:'');setTimeout(()=>t.className='toast',4000)}
+function log(txt){S.log.unshift({t:Date.now(),txt});if(S.log.length>60)S.log.length=60;save();renderLog()}
+
+// Populate brands
+const bSel=document.getElementById('mBrand');
+Object.keys(BRANDS).sort().forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=k.charAt(0).toUpperCase()+k.slice(1).replace('_',' ');bSel.appendChild(o)});
+function updModels(){const b=document.getElementById('mBrand').value,s=document.getElementById('mModel');s.innerHTML='<option value="">Selecionar...</option>';if(b&&BRANDS[b])BRANDS[b].forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;s.appendChild(o)})}
+
+// ═══════════════════════════════════════════
+// CORS PROXY FETCH
+// ═══════════════════════════════════════════
+const PROXIES = {
+    allorigins: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    corsfix:    url => `https://proxy.corsfix.com/?${encodeURIComponent(url)}`,
+    corsproxy:  url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+};
+
+async function fetchViaProxy(url, retries=2) {
+    const proxyOrder = [S.cfg.proxy||'allorigins', 'allorigins', 'corsfix', 'corsproxy'].filter((v,i,a)=>a.indexOf(v)===i);
+
+    for (const proxy of proxyOrder) {
+        for (let attempt=0; attempt<=retries; attempt++) {
+            try {
+                const proxyUrl = PROXIES[proxy](url);
+                const res = await fetch(proxyUrl, {
+                    headers: { 'Accept': 'text/html,application/xhtml+xml,*/*' },
+                    signal: AbortSignal.timeout(25000)
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const html = await res.text();
+                if (html.length < 500) throw new Error('Response too short');
+                return html;
+            } catch(e) {
+                if (attempt === retries) console.warn(`[${proxy}] Failed: ${e.message}`);
+                else await new Promise(r=>setTimeout(r, 1000*(attempt+1)));
+            }
+        }
+    }
+    throw new Error('All proxies failed');
+}
+
+// ═══════════════════════════════════════════
+// URL BUILDERS
+// ═══════════════════════════════════════════
+function buildAS24Url(it) {
+    const brand = it.brandKey, model = it.model.toLowerCase().replace(/\s+/g,'-').replace(/[éè]/g,'e');
+    const p = new URLSearchParams({atype:'C',cy:'NL',fregfrom:it.yearFrom,fregto:it.yearTo,kmto:it.maxKm,sort:'price',desc:'0',ustate:'N,U'});
+    const fuelMap = {diesel:'D',gasolina:'B',eletrico:'E',hibrido:'M'};
+    if (it.fuel!=='all' && fuelMap[it.fuel]) p.set('fuel',fuelMap[it.fuel]);
+    return `https://www.autoscout24.nl/lst/${brand}/${model}?${p}`;
+}
+
+function buildSVUrl(it) {
+    const brand = it.brandKey, model = it.model.toLowerCase().replace(/\s+/g,'-').replace(/[éè]/g,'e');
+    const p = new URLSearchParams();
+    p.set('search[filter_float_year:from]',it.yearFrom);
+    p.set('search[filter_float_year:to]',it.yearTo);
+    p.set('search[filter_float_mileage:to]',it.maxKm);
+    p.set('search[order]','filter_float_price:asc');
+    const fuelMap = {diesel:'diesel',gasolina:'petrol',eletrico:'electric',hibrido:'hybrid'};
+    if (it.fuel!=='all' && fuelMap[it.fuel]) p.set('search[filter_enum_fuel_type][0]',fuelMap[it.fuel]);
+    return `https://www.standvirtual.com/carros/${brand}/${model}/?${p}`;
+}
+
+// ═══════════════════════════════════════════
+// PARSERS — Extract prices from HTML
+// ═══════════════════════════════════════════
+function parseAS24(html) {
+    const prices = [];
+
+    // 1) __NEXT_DATA__ JSON (most reliable)
+    const ndMatch = html.match(/<script\s+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+    if (ndMatch) {
+        try {
+            const nd = JSON.parse(ndMatch[1]);
+            const find = (obj, depth=0) => {
+                if (!obj || depth > 8) return;
+                if (Array.isArray(obj)) { obj.forEach(x => find(x, depth+1)); return; }
+                if (typeof obj === 'object') {
+                    // Look for listing-like objects with price
+                    if (obj.tracking?.price || obj.prices || obj.price) {
+                        const p = parseInt(obj.tracking?.price || obj.prices?.['0']?.amount || obj.price?.amount || obj.price) || 0;
+                        if (p > 500 && p < 500000) prices.push(p);
+                    }
+                    Object.values(obj).forEach(v => find(v, depth+1));
+                }
+            };
+            find(nd?.props?.pageProps);
+        } catch(e) {}
+    }
+
+    // 2) JSON-LD
+    if (prices.length === 0) {
+        const ldMatches = html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
+        for (const m of ldMatches) {
+            try {
+                const d = JSON.parse(m[1]);
+                const items = d.itemListElement || (d['@graph']||[]).flatMap(g=>g.itemListElement||[]);
+                items.forEach(item => {
+                    const p = parseInt(item.item?.offers?.price || item.offers?.price || 0);
+                    if (p > 500 && p < 500000) prices.push(p);
+                });
+            } catch(e) {}
+        }
+    }
+
+    // 3) data-testid / class-based price extraction
+    if (prices.length === 0) {
+        const pricePatterns = [
+            /data-testid="[^"]*price[^"]*"[^>]*>[\s€]*([\d.]+)/gi,
+            /class="[^"]*[Pp]rice[^"]*"[^>]*>[\s€]*([\d.]+)/gi,
+            /"price"\s*:\s*"?(\d+)"?/gi,
+            /"amount"\s*:\s*"?(\d+)"?/gi,
+        ];
+        for (const pat of pricePatterns) {
+            let m; while ((m=pat.exec(html))!==null) {
+                const p = parseInt(m[1].replace(/\./g,''));
+                if (p > 500 && p < 500000) prices.push(p);
+            }
+            if (prices.length >= 3) break;
+        }
+    }
+
+    // 4) Generic € price regex (last resort)
+    if (prices.length === 0) {
+        const re = /€\s*([\d.]{3,10})(?:[,]\d{2})?/g;
+        let m; while ((m=re.exec(html))!==null) {
+            const p = parseInt(m[1].replace(/\./g,''));
+            if (p > 1000 && p < 300000) prices.push(p);
+        }
+    }
+
+    return [...new Set(prices)].filter(p=>p>500);
+}
+
+function parseSV(html) {
+    const prices = [];
+
+    // 1) __NEXT_DATA__
+    const ndMatch = html.match(/<script\s+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+    if (ndMatch) {
+        try {
+            const nd = JSON.parse(ndMatch[1]);
+            const find = (obj, depth=0) => {
+                if (!obj || depth > 8) return;
+                if (Array.isArray(obj)) { obj.forEach(x => find(x, depth+1)); return; }
+                if (typeof obj === 'object') {
+                    if (obj.price?.amount || obj.price?.displayValue) {
+                        const p = parseInt(obj.price.amount || obj.price.displayValue?.replace(/\D/g,'')) || 0;
+                        if (p > 500 && p < 500000) prices.push(p);
+                    }
+                    if (obj.totalPrice || obj.grossPrice) {
+                        const p = parseInt(obj.totalPrice || obj.grossPrice) || 0;
+                        if (p > 500 && p < 500000) prices.push(p);
+                    }
+                    Object.values(obj).forEach(v => find(v, depth+1));
+                }
+            };
+            find(nd?.props?.pageProps);
+        } catch(e) {}
+    }
+
+    // 2) Inline JSON patterns (OLX/StandVirtual)
+    if (prices.length === 0) {
+        const jsonPatterns = [
+            /"price"\s*:\s*\{\s*"amount"\s*:\s*(\d+)/g,
+            /"price"\s*:\s*(\d{4,6})/g,
+            /"totalPrice"\s*:\s*"?(\d+)"?/g,
+        ];
+        for (const pat of jsonPatterns) {
+            let m; while ((m=pat.exec(html))!==null) {
+                const p = parseInt(m[1]);
+                if (p > 500 && p < 500000) prices.push(p);
+            }
+            if (prices.length >= 3) break;
+        }
+    }
+
+    // 3) € regex
+    if (prices.length === 0) {
+        const re = /€\s*([\d.\s]{3,10})(?:[,]\d{2})?/g;
+        let m; while ((m=re.exec(html))!==null) {
+            const p = parseInt(m[1].replace(/[\s.]/g,''));
+            if (p > 1000 && p < 300000) prices.push(p);
+        }
+    }
+
+    return [...new Set(prices)].filter(p=>p>500);
+}
+
+function calcStats(arr) {
+    if (!arr.length) return {avg:0,med:0,min:0,max:0,n:0};
+    const s = [...arr].sort((a,b)=>a-b);
+    return {avg:Math.round(s.reduce((a,b)=>a+b)/s.length), med:s[Math.floor(s.length/2)], min:s[0], max:s[s.length-1], n:s.length};
+}
+
+// ═══════════════════════════════════════════
+// SCAN ENGINE
+// ═══════════════════════════════════════════
+let scanning = false;
+
+async function scanItem(it) {
+    const urlNL = buildAS24Url(it);
+    const urlPT = buildSVUrl(it);
+
+    log(`🔍 Buscando ${it.brand} ${it.model} na Holanda...`);
+    let htmlNL, htmlPT, pricesNL = [], pricesPT = [];
+
+    try {
+        htmlNL = await fetchViaProxy(urlNL);
+        pricesNL = parseAS24(htmlNL);
+        log(`🇳🇱 AutoScout24: ${pricesNL.length} preços encontrados`);
+    } catch(e) {
+        log(`❌ Erro NL: ${e.message}`);
+    }
+
+    // Small delay
+    await new Promise(r=>setTimeout(r,1500));
+
+    log(`🔍 Buscando ${it.brand} ${it.model} em Portugal...`);
+    try {
+        htmlPT = await fetchViaProxy(urlPT);
+        pricesPT = parseSV(htmlPT);
+        log(`🇵🇹 StandVirtual: ${pricesPT.length} preços encontrados`);
+    } catch(e) {
+        log(`❌ Erro PT: ${e.message}`);
+    }
+
+    if (pricesNL.length === 0 && pricesPT.length === 0) {
+        throw new Error('Nenhum preço encontrado. Os sites podem estar bloqueando ou não há resultados.');
+    }
+
+    const sNL = calcStats(pricesNL);
+    const sPT = calcStats(pricesPT);
+    const pNL = sNL.med || sNL.avg;
+    const pPT = sPT.med || sPT.avg;
+    const spread = (pPT && pNL) ? pPT - pNL - it.importCost : 0;
+
+    return { priceNL:pNL, pricePT:pPT, spread, urlNL, urlPT, nNL:sNL.n, nPT:sPT.n, minNL:sNL.min, maxNL:sNL.max, minPT:sPT.min, maxPT:sPT.max };
+}
+
+async function scanSingle(id) {
+    const it = S.watchlist.find(w=>w.id===id);
+    if (!it || scanning) return;
+    scanning = true;
+    document.getElementById('scanBtn').classList.add('scanning');
+    try {
+        const r = await scanItem(it);
+        Object.assign(it, { priceNL:r.priceNL, pricePT:r.pricePT, spread:r.spread, urlNL:r.urlNL, urlPT:r.urlPT, nNL:r.nNL, nPT:r.nPT, minNL:r.minNL, maxNL:r.maxNL, minPT:r.minPT, maxPT:r.maxPT, lastCheck:Date.now() });
+        const min = it.customSpread || S.cfg.minSpread;
+        if (r.spread >= min) { it.status='alert'; triggerAlert(it, r); }
+        else it.status = 'monitoring';
+        log(`✅ ${it.brand} ${it.model}: NL €${r.priceNL?.toLocaleString()||'?'} → PT €${r.pricePT?.toLocaleString()||'?'} | Spread: €${r.spread?.toLocaleString()||'?'}`);
+        toast('✅',`${it.brand} ${it.model}: Spread €${r.spread?.toLocaleString()||'?'}`, r.spread>=min?'ok':'');
+    } catch(e) {
+        log(`❌ ${it.brand} ${it.model}: ${e.message}`);
+        toast('❌',e.message,'err');
+    }
+    save(); renderAll();
+    scanning = false;
+    document.getElementById('scanBtn').classList.remove('scanning');
+}
+
+async function scanAll() {
+    const items = S.watchlist.filter(w=>w.status!=='paused');
+    if (!items.length) return toast('⚠️','Adicione modelos à watchlist primeiro','warn');
+    if (scanning) return toast('⚠️','Scan já em andamento','warn');
+
+    scanning = true;
+    document.getElementById('scanBtn').classList.add('scanning');
+    document.getElementById('scanProgress').style.display='block';
+
+    for (let i=0; i<items.length; i++) {
+        const pct = Math.round(((i)/items.length)*100);
+        document.getElementById('progBar').style.width=pct+'%';
+        document.getElementById('progText').textContent=`Scanning ${i+1}/${items.length}: ${items[i].brand} ${items[i].model}...`;
+
+        try {
+            const r = await scanItem(items[i]);
+            Object.assign(items[i], { priceNL:r.priceNL, pricePT:r.pricePT, spread:r.spread, urlNL:r.urlNL, urlPT:r.urlPT, nNL:r.nNL, nPT:r.nPT, minNL:r.minNL, maxNL:r.maxNL, minPT:r.minPT, maxPT:r.maxPT, lastCheck:Date.now() });
+            const min = items[i].customSpread || S.cfg.minSpread;
+            if (r.spread >= min) { items[i].status='alert'; triggerAlert(items[i], r); }
+            else items[i].status = 'monitoring';
+        } catch(e) {
+            log(`❌ ${items[i].brand} ${items[i].model}: ${e.message}`);
+        }
+        save(); renderAll();
+
+        // Delay between items to avoid rate limiting
+        if (i < items.length-1) await new Promise(r=>setTimeout(r,3000));
+    }
+
+    document.getElementById('progBar').style.width='100%';
+    document.getElementById('progText').textContent='Scan completo!';
+    setTimeout(()=>{ document.getElementById('scanProgress').style.display='none'; },2000);
+
+    log(`✅ Scan completo: ${items.length} modelos verificados`);
+    toast('✅',`Scan completo!`,'ok');
+    scanning = false;
+    document.getElementById('scanBtn').classList.remove('scanning');
+}
+
+function triggerAlert(it, r) {
+    S.alerts.unshift({ id:Date.now(), brand:it.brand, model:it.model, priceNL:r.priceNL, pricePT:r.pricePT, spread:r.spread, urlNL:r.urlNL, urlPT:r.urlPT, time:Date.now() });
+    if (S.alerts.length>100) S.alerts.length=100;
+
+    // Browser notification
+    if ('Notification' in window && Notification.permission==='granted') {
+        new Notification('🚗 AutoArbitrage — Oportunidade!', { body:`${it.brand} ${it.model}\nSpread: €${r.spread.toLocaleString()}\nNL €${r.priceNL.toLocaleString()} → PT €${r.pricePT.toLocaleString()}` });
+    }
+    // Sound
+    try { const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=0.08;o.start();setTimeout(()=>{o.frequency.value=1100},120);setTimeout(()=>{o.stop();c.close()},250); }catch(e){}
+    // Vibrate
+    if (navigator.vibrate) navigator.vibrate([200,80,200]);
+    save();
+}
+
+// ═══════════════════════════════════════════
+// CRUD
+// ═══════════════════════════════════════════
+function addItem() {
+    const b=document.getElementById('mBrand'), m=document.getElementById('mModel');
+    if (!b.value||!m.value) return toast('⚠️','Selecione marca e modelo','warn');
+    S.watchlist.push({
+        id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+        brand: b.options[b.selectedIndex].text,
+        brandKey: b.value,
+        model: m.value,
+        yearFrom: +document.getElementById('mYF').value||2019,
+        yearTo: +document.getElementById('mYT').value||2024,
+        maxKm: +document.getElementById('mKm').value||120000,
+        fuel: document.getElementById('mFuel').value,
+        customSpread: +document.getElementById('mSpread').value||null,
+        importCost: +document.getElementById('mCost').value||2500,
+        status:'monitoring', priceNL:null, pricePT:null, spread:null, lastCheck:null
+    });
+    save(); renderAll(); closeModal();
+    toast('✅',`${b.options[b.selectedIndex].text} ${m.value} adicionado!`,'ok');
+    log(`➕ Adicionado: ${b.options[b.selectedIndex].text} ${m.value}`);
+}
+
+function removeItem(id){ if(confirm('Remover?')){ S.watchlist=S.watchlist.filter(w=>w.id!==id); save(); renderAll(); toast('🗑','Removido'); }}
+function togglePause(id){ const it=S.watchlist.find(w=>w.id===id); if(it){it.status=it.status==='paused'?'monitoring':'paused'; save(); renderAll(); }}
+function saveCfg(){ S.cfg.minSpread=+document.getElementById('cfgSpread').value||2000; S.cfg.proxy=document.getElementById('cfgProxy').value; save(); toast('✅','Salvo!','ok'); }
+function exportData(){ const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`autoarb-${new Date().toISOString().slice(0,10)}.json`; a.click(); }
+function clearAll(){ if(confirm('Limpar todos os dados?')){ S.watchlist=[]; S.alerts=[]; S.log=[]; save(); renderAll(); toast('🗑','Dados limpos'); }}
+
+// ═══════════════════════════════════════════
+// RENDERERS
+// ═══════════════════════════════════════════
+function renderAll(){ renderWL(); renderAL(); renderStats(); renderLog(); }
+
+function renderWL() {
+    const c=document.getElementById('wlItems');
+    if (!S.watchlist.length) { c.innerHTML='<div class="es"><div class="es-i">🚗</div><h3>Watchlist vazia</h3><p>Adicione modelos para começar a monitorar preços entre NL e PT</p></div>'; return; }
+    c.innerHTML=S.watchlist.map(it=>{
+        const ha=it.status==='alert', sc=it.status==='paused'?'st-p':ha?'st-a':'st-m',
+              st=it.status==='paused'?'⏸ Pausado':ha?'⚡ Alerta!':'● Ativo',
+              fl={all:'Todos',diesel:'Diesel',gasolina:'Gasolina',hibrido:'Híbrido',eletrico:'Elétrico'}[it.fuel]||'';
+        return `<div class="wi ${ha?'alert':''}">
+            <div class="wi-h"><div><div class="wi-n">${it.brand} ${it.model}</div><div class="wi-d">${it.yearFrom}–${it.yearTo} · ${(it.maxKm/1000)|0}k km · ${fl} · Import €${it.importCost.toLocaleString()}</div></div><span class="wi-st ${sc}">${st}</span></div>
+            ${it.priceNL!=null?`
+            <div class="wi-pr"><div class="pb"><div class="pl">🇳🇱 Holanda</div><div class="pv pv-nl">€${it.priceNL.toLocaleString()}</div><div class="pd">${it.nNL||'?'} anúncios${it.minNL?` · €${it.minNL.toLocaleString()}–€${it.maxNL.toLocaleString()}`:''}</div></div><div class="sa">→</div><div class="pb"><div class="pl">🇵🇹 Portugal</div><div class="pv pv-pt">€${it.pricePT.toLocaleString()}</div><div class="pd">${it.nPT||'?'} anúncios${it.minPT?` · €${it.minPT.toLocaleString()}–€${it.maxPT.toLocaleString()}`:''}</div></div></div>
+            <div class="sb"><div class="sb-l">Spread Líquido (PT − NL − import)</div><div class="sb-v ${it.spread<0?'neg':''}">€${it.spread.toLocaleString()}</div></div>`
+            :'<div style="text-align:center;padding:14px;color:var(--muted);font-size:12px">Clique 🔍 para buscar preços reais</div>'}
+            ${it.lastCheck?`<div class="wi-m">Último: ${new Date(it.lastCheck).toLocaleString('pt-BR')}</div>`:''}
+            <div class="wi-a">
+                <button class="btn btn-s btn-sm" onclick="scanSingle('${it.id}')">🔍 Scan</button>
+                ${it.urlNL?`<a class="btn btn-s btn-sm" href="${it.urlNL}" target="_blank" style="text-decoration:none;color:var(--nl)">🇳🇱</a>`:''}
+                ${it.urlPT?`<a class="btn btn-s btn-sm" href="${it.urlPT}" target="_blank" style="text-decoration:none;color:var(--pt)">🇵🇹</a>`:''}
+                <button class="btn btn-s btn-sm" onclick="togglePause('${it.id}')">${it.status==='paused'?'▶':'⏸'}</button>
+                <button class="btn btn-d btn-sm" onclick="removeItem('${it.id}')">✕</button>
+            </div></div>`;
+    }).join('');
+}
+
+function renderAL() {
+    const c=document.getElementById('alList');
+    if (!S.alerts.length) { c.innerHTML='<div class="es"><div class="es-i">🔔</div><h3>Nenhum alerta</h3><p>Alertas aparecem quando o spread atingir o mínimo</p></div>'; return; }
+    c.innerHTML=S.alerts.slice(0,30).map(a=>`
+        <div class="ai"><div class="ai-t">${new Date(a.time).toLocaleString('pt-BR')}</div><div class="ai-c">${a.brand} ${a.model}</div>
+        <div style="font-size:12px;color:var(--text2)">🇳🇱 €${a.priceNL?.toLocaleString()||'?'} → 🇵🇹 €${a.pricePT?.toLocaleString()||'?'}</div>
+        <div class="ai-s">Spread: €${a.spread?.toLocaleString()||'?'}</div>
+        <div class="ai-l"><a href="${a.urlNL||'#'}" target="_blank" class="al al-nl">🇳🇱 AutoScout24</a><a href="${a.urlPT||'#'}" target="_blank" class="al al-pt">🇵🇹 StandVirtual</a></div></div>`).join('');
+}
+
+function renderStats() {
+    const active=S.watchlist.filter(w=>w.status!=='paused').length;
+    const alerts=S.watchlist.filter(w=>w.status==='alert').length;
+    const best=S.watchlist.reduce((m,w)=>(w.spread||0)>m?(w.spread||0):m,0);
+    const last=S.watchlist.reduce((m,w)=>w.lastCheck>m?w.lastCheck:m,0);
+    document.getElementById('sW').textContent=active;
+    document.getElementById('sA').textContent=alerts;
+    document.getElementById('sS').textContent=best>0?`€${best.toLocaleString()}`:'—';
+    document.getElementById('sL').textContent=last?new Date(last).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'—';
+}
+
+function renderLog() {
+    const c=document.getElementById('actLog');
+    if (!S.log.length) { c.innerHTML='<p style="color:var(--muted);font-size:12px;text-align:center;padding:12px">Sem atividade.</p>'; return; }
+    c.innerHTML=S.log.slice(0,12).map(l=>`<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2)"><span style="color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:10px">${new Date(l.t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span> ${l.txt}</div>`).join('');
+}
+
+// ── Request notification permission on first interact ──
+document.addEventListener('click',()=>{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); },{once:true});
+
+// ── INIT ──
+load(); renderAll();
+</script>
+</body>
+</html>
